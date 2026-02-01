@@ -20,48 +20,63 @@ st.set_page_config(
 # Inicializar Banco de Dados
 db = DatabaseManager()
 
-# --- DESIGN MODERNO (PRETO, CINZA, AZUL) - SEM VERMELHO ---
+# --- DESIGN FORÇADO (AZUL ESCURO E PRETO) - REMOVENDO VERMELHO ---
 st.markdown("""
 <style>
-    .stApp { background-color: #0E1117; color: #E0E0E0; }
-    [data-testid="stSidebar"] { background-color: #161B22; border-right: 1px solid #30363D; }
-    
-    /* Mensagens */
-    .stChatMessage {
-        background-color: #161B22;
-        border: 1px solid #30363D;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    [data-testid="stChatMessageUser"] {
-        background-color: #0D1117;
-        border-left: 4px solid #005FB8; /* Azul Escuro */
+    /* Fundo Principal */
+    .stApp {
+        background-color: #0E1117 !important;
+        color: #E0E0E0 !important;
     }
     
-    /* Barra de Digitação - Sem Vermelho */
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #0D1117 !important;
+        border-right: 1px solid #1F2328 !important;
+    }
+    
+    /* BARRA DE DIGITAÇÃO - FORÇAR AZUL ESCURO */
+    .stChatInputContainer {
+        background-color: #0E1117 !important;
+    }
     .stChatInputContainer textarea {
         background-color: #161B22 !important;
-        color: #E0E0E0 !important;
-        border: 1px solid #005FB8 !important;
+        color: #FFFFFF !important;
+        border: 2px solid #005FB8 !important; /* Azul Escuro */
+        border-radius: 10px !important;
     }
     
-    /* Botões */
+    /* Remover qualquer borda vermelha de foco */
+    textarea:focus {
+        border-color: #58A6FF !important;
+        box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25) !important;
+    }
+
+    /* Botões de Envio e Ícones */
+    button[data-testid="stChatInputSubmit"] {
+        color: #58A6FF !important;
+    }
+
+    /* Mensagens de Chat */
+    .stChatMessage {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+        border-radius: 15px !important;
+    }
+    [data-testid="stChatMessageUser"] {
+        border-left: 5px solid #005FB8 !important; /* Azul Escuro */
+    }
+    
+    /* Títulos */
+    h1, h2, h3 {
+        color: #58A6FF !important;
+    }
+
+    /* Estilo para botões gerais */
     .stButton>button {
-        background-color: #21262D;
-        color: #58A6FF;
-        border: 1px solid #30363D;
-        border-radius: 8px;
-    }
-    
-    h1, h2, h3 { color: #58A6FF !important; }
-    
-    /* Estilo para o gravador */
-    .mic-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        background-color: #21262D !important;
+        color: #58A6FF !important;
+        border: 1px solid #30363D !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -74,16 +89,19 @@ if "groq_key" not in st.session_state: st.session_state.groq_key = ""
 if "voice_enabled" not in st.session_state: st.session_state.voice_enabled = False
 
 def text_to_speech(text):
-    tts = gTTS(text=text, lang='pt', tld='com.br')
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    return fp
+    try:
+        tts = gTTS(text=text, lang='pt', tld='com.br')
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        return fp
+    except:
+        return None
 
-# --- SIDEBAR ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
     
-    model_option = st.selectbox("🚀 Modelo", list(AVAILABLE_MODELS.keys()), index=0)
+    model_option = st.selectbox("🚀 Escolha o Modelo", list(AVAILABLE_MODELS.keys()), index=0)
     model_full_id = AVAILABLE_MODELS[model_option]
     provider, model_id = model_full_id.split(":")
     
@@ -96,10 +114,10 @@ with st.sidebar:
         api_key = st.session_state.groq_key
         base_url = "https://api.groq.com/openai/v1"
     
-    st.session_state.voice_enabled = st.toggle("🔊 Resposta em Voz", value=st.session_state.voice_enabled)
+    st.session_state.voice_enabled = st.toggle("🔊 IA Falar com Você", value=st.session_state.voice_enabled)
     
     st.divider()
-    if st.button("➕ Novo Chat", use_container_width=True):
+    if st.button("➕ Nova Conversa", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
         st.rerun()
@@ -112,42 +130,36 @@ with st.sidebar:
             st.rerun()
 
 # --- ÁREA PRINCIPAL ---
-st.markdown("<h1 style='text-align: center;'>Multimídia & Voz</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Central Multimídia & Voz</h2>", unsafe_allow_html=True)
 
-# Upload de Arquivos e Imagens
-uploaded_files = st.file_uploader("📁 Enviar Imagens, Áudios ou Documentos", accept_multiple_files=True)
-
-# Gravador de Voz
-st.write("🎤 Gravar Áudio:")
-audio_record = mic_recorder(start_prompt="Começar Gravação", stop_prompt="Parar e Enviar", key='recorder')
+# Container de Multimídia
+with st.container():
+    col1, col2 = st.columns([0.7, 0.3])
+    with col1:
+        uploaded_files = st.file_uploader("📁 Enviar Imagens ou Documentos", accept_multiple_files=True)
+    with col2:
+        st.write("🎤 Gravar Voz:")
+        audio_record = mic_recorder(start_prompt="Gravar", stop_prompt="Enviar", key='recorder')
 
 # Exibir Mensagens
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Lógica de Processamento
-prompt = st.chat_input("O que vamos construir hoje?")
-
-# Se houver áudio gravado, processar como prompt
-if audio_record:
-    # Nota: Em um ambiente real, usaríamos Whisper para transcrever. 
-    # Aqui vamos simular o recebimento do áudio.
-    prompt = "[Áudio Gravado Enviado]"
-
-if prompt:
+# Lógica de Chat
+if prompt := st.chat_input("O que vamos construir hoje?"):
     if not api_key:
-        st.error("Insira sua chave na barra lateral!")
+        st.error("Por favor, insira sua chave na barra lateral!")
     else:
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(prompt[:30], model_id, "Assistente")
         
-        # Processar arquivos anexados
+        # Processar arquivos
         context_files = ""
         if uploaded_files:
             for f in uploaded_files:
                 if f.type.startswith("image/"):
-                    context_files += f"\n[Imagem Anexada: {f.name}]"
+                    context_files += f"\n[Imagem Enviada: {f.name}]"
                 else:
                     content = process_uploaded_file(f.name, f.read())
                     context_files += f"\n[Arquivo: {f.name}]\n{content}"
@@ -179,10 +191,14 @@ if prompt:
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
                 db.add_message(st.session_state.current_conversation_id, "assistant", full_response)
                 
-                # Se voz estiver ativa, gerar áudio
                 if st.session_state.voice_enabled:
                     audio_fp = text_to_speech(full_response)
-                    st.audio(audio_fp, format='audio/mp3', autoplay=True)
+                    if audio_fp:
+                        st.audio(audio_fp, format='audio/mp3', autoplay=True)
                     
             except Exception as e:
                 st.error(f"Erro: {str(e)}")
+
+# Se houver áudio gravado (simulação de envio)
+if audio_record and not prompt:
+    st.info("Áudio gravado com sucesso! Digite algo para enviar junto ou clique em enviar.")
