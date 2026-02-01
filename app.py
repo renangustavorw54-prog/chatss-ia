@@ -15,7 +15,7 @@ from pydub import AudioSegment
 
 # Configuração da Página
 st.set_page_config(
-    page_title="ChatSS IA - Elite Agent",
+    page_title="ChatGPT",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -28,20 +28,104 @@ except Exception as e:
     st.error(f"Erro ao iniciar banco de dados: {e}")
     st.stop()
 
-# --- DESIGN FORÇADO (AZUL ESCURO E PRETO) ---
+# --- DESIGN PREMIUM ESTILO CHATGPT (DARK MODE) ---
 st.markdown("""
 <style>
-    .stApp { background-color: #0E1117 !important; color: #E0E0E0 !important; }
-    [data-testid="stSidebar"] { background-color: #0D1117 !important; border-right: 1px solid #1F2328 !important; }
-    .stChatInputContainer textarea {
-        background-color: #161B22 !important;
-        color: #FFFFFF !important;
-        border: 2px solid #005FB8 !important;
-        border-radius: 10px !important;
+    /* Importar Fonte Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    /* Reset Geral */
+    * { font-family: 'Inter', sans-serif; }
+    
+    .stApp {
+        background-color: #212121 !important;
+        color: #ececec !important;
     }
-    .stChatMessage { background-color: #161B22 !important; border: 1px solid #30363D !important; border-radius: 15px !important; }
-    [data-testid="stChatMessageUser"] { border-left: 5px solid #005FB8 !important; }
-    h1, h2, h3 { color: #58A6FF !important; }
+
+    /* Sidebar Estilo ChatGPT */
+    [data-testid="stSidebar"] {
+        background-color: #171717 !important;
+        border-right: none !important;
+        width: 260px !important;
+    }
+    
+    .stSidebar [data-testid="stVerticalBlock"] {
+        padding: 10px !important;
+    }
+
+    /* Botão Nova Conversa */
+    .stButton>button {
+        background-color: transparent !important;
+        color: #ececec !important;
+        border: 1px solid #4d4d4d !important;
+        border-radius: 8px !important;
+        width: 100% !important;
+        text-align: left !important;
+        padding: 10px !important;
+        font-size: 14px !important;
+        transition: background-color 0.2s;
+    }
+    .stButton>button:hover {
+        background-color: #2f2f2f !important;
+    }
+
+    /* Container de Mensagens */
+    .stChatMessage {
+        background-color: transparent !important;
+        padding: 20px 0 !important;
+        max-width: 800px !important;
+        margin: 0 auto !important;
+    }
+    
+    /* Avatar e Conteúdo */
+    [data-testid="stChatMessageAvatarUser"] { background-color: #5436da !important; }
+    [data-testid="stChatMessageAvatarAssistant"] { background-color: #10a37f !important; }
+
+    /* Barra de Digitação Flutuante */
+    .stChatInputContainer {
+        background-color: transparent !important;
+        border: none !important;
+        padding-bottom: 40px !important;
+    }
+    
+    .stChatInputContainer textarea {
+        background-color: #2f2f2f !important;
+        color: #ececec !important;
+        border: 1px solid #4d4d4d !important;
+        border-radius: 12px !important;
+        padding: 12px 15px !important;
+        max-width: 800px !important;
+        margin: 0 auto !important;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1) !important;
+    }
+    
+    .stChatInputContainer textarea:focus {
+        border-color: #676767 !important;
+        box-shadow: 0 0 20px rgba(0,0,0,0.2) !important;
+    }
+
+    /* Esconder elementos Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Centralizar Título Inicial */
+    .main-title {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin-top: 15vh;
+        color: #ececec;
+    }
+    
+    /* Estilo para o Microfone e Upload */
+    .tools-container {
+        max-width: 800px;
+        margin: 0 auto 10px auto;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,74 +148,95 @@ def text_to_speech(text):
 def get_weather(city):
     try:
         response = requests.get(f"https://wttr.in/{city}?format=%C+%t")
-        if response.status_code == 200:
-            return response.text
-        return "Não consegui acessar o clima agora."
-    except:
-        return "Erro ao buscar clima."
+        return response.text if response.status_code == 200 else "Indisponível"
+    except: return "Erro"
 
 def transcribe_audio_free(audio_bytes):
     try:
-        # Converter bytes para formato que o SpeechRecognition entende
         audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes))
         wav_io = io.BytesIO()
         audio_segment.export(wav_io, format="wav")
         wav_io.seek(0)
-        
         recognizer = sr.Recognizer()
         with sr.AudioFile(wav_io) as source:
             audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data, language="pt-BR")
-            return text
-    except Exception as e:
-        return f"[Erro na transcrição gratuita: {e}]"
+            return recognizer.recognize_google(audio_data, language="pt-BR")
+    except: return "[Áudio não compreendido]"
 
-# --- BARRA LATERAL ---
+# --- SIDEBAR (HISTÓRICO) ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
-    model_option = st.selectbox("🚀 Modelo", list(AVAILABLE_MODELS.keys()), index=0)
-    model_full_id = AVAILABLE_MODELS[model_option]
-    provider, model_id = model_full_id.split(":")
+    st.markdown("<div style='padding: 10px 0;'><b style='font-size: 18px;'>ChatSS IA</b></div>", unsafe_allow_html=True)
     
-    if provider == "openai":
-        st.session_state.openai_key = st.text_input("🔑 Chave OpenAI", value=st.session_state.openai_key, type="password")
-        api_key = st.session_state.openai_key
-        base_url = None
-    else:
-        st.session_state.groq_key = st.text_input("🔑 Chave Groq", value=st.session_state.groq_key, type="password")
-        api_key = st.session_state.groq_key
-        base_url = "https://api.groq.com/openai/v1"
-    
-    st.session_state.voice_enabled = st.toggle("🔊 Voz Ativa", value=st.session_state.voice_enabled)
-    
-    if st.button("➕ Novo Chat", use_container_width=True):
+    if st.button("➕ Nova conversa", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
         st.rerun()
+    
+    st.markdown("<div style='margin-top: 20px; color: #676767; font-size: 12px; font-weight: 600;'>HISTÓRICO</div>", unsafe_allow_html=True)
+    
+    try:
+        conversations = db.get_conversations()
+        for conv in conversations:
+            if st.button(f"💬 {conv['title'][:22]}", key=f"c_{conv['id']}", use_container_width=True):
+                st.session_state.current_conversation_id = conv['id']
+                st.session_state.messages = db.get_messages(conv['id'])
+                st.rerun()
+    except: pass
+
+    st.divider()
+    # Configurações no rodapé da sidebar
+    with st.expander("⚙️ Configurações"):
+        model_option = st.selectbox("Modelo", list(AVAILABLE_MODELS.keys()), index=0)
+        model_full_id = AVAILABLE_MODELS[model_option]
+        provider, model_id = model_full_id.split(":")
+        
+        if provider == "openai":
+            st.session_state.openai_key = st.text_input("Chave OpenAI", value=st.session_state.openai_key, type="password")
+            api_key = st.session_state.openai_key
+            base_url = None
+        else:
+            st.session_state.groq_key = st.text_input("Chave Groq", value=st.session_state.groq_key, type="password")
+            api_key = st.session_state.groq_key
+            base_url = "https://api.groq.com/openai/v1"
+        
+        st.session_state.voice_enabled = st.toggle("Voz Ativa", value=st.session_state.voice_enabled)
 
 # --- ÁREA PRINCIPAL ---
-st.markdown("<h2 style='text-align: center;'>Voz & Clima Grátis</h2>", unsafe_allow_html=True)
 
-# Entrada de Áudio
-st.write("🎤 Fale com a IA (Grátis):")
-audio_record = mic_recorder(start_prompt="🔴 Gravar", stop_prompt="🟢 Enviar", just_once=True, key='recorder')
+if not st.session_state.messages:
+    st.markdown("<div class='main-title'>Como posso ajudar hoje?</div>", unsafe_allow_html=True)
+else:
+    # Exibir Mensagens
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-# Processar Áudio se houver
-user_input = st.chat_input("Ou digite aqui...")
+# Ferramentas Auxiliares (Microfone e Upload)
+st.markdown("<div class='tools-container'>", unsafe_allow_html=True)
+col_mic, col_file = st.columns([0.2, 0.8])
+with col_mic:
+    audio_record = mic_recorder(start_prompt="🎤", stop_prompt="✅", just_once=True, key='recorder')
+with col_file:
+    uploaded_files = st.file_uploader("📎", accept_multiple_files=True, label_visibility="collapsed")
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Input de Chat
+user_input = st.chat_input("Enviar mensagem")
+
+# Processar Áudio
 if audio_record and audio_record.get('id') != st.session_state.last_audio_id:
     st.session_state.last_audio_id = audio_record.get('id')
-    with st.spinner("Traduzindo sua voz..."):
+    with st.spinner(""):
         user_input = transcribe_audio_free(audio_record['bytes'])
 
 # Lógica de Chat
 if user_input:
     if not api_key:
-        st.error("⚠️ Insira sua chave na barra lateral!")
+        st.error("Configure sua chave nas configurações (canto inferior esquerdo).")
     else:
         if "tempo" in user_input.lower() or "temperatura" in user_input.lower():
-            city = "Caraguatatuba"
-            weather_info = get_weather(city)
-            user_input += f"\n\n[INFO CLIMA: Em {city} está {weather_info}]"
+            weather_info = get_weather("Caraguatatuba")
+            user_input += f"\n\n[Sistema: O clima em Caraguatatuba é {weather_info}]"
 
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(user_input[:30], model_id, "Assistente")
@@ -164,8 +269,3 @@ if user_input:
             if st.session_state.voice_enabled:
                 audio_fp = text_to_speech(full_response)
                 if audio_fp: st.audio(audio_fp, format='audio/mp3', autoplay=True)
-
-# Exibir Histórico
-for message in st.session_state.messages[:-1]:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
