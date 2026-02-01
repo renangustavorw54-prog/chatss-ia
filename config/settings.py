@@ -18,12 +18,11 @@ DATABASE_PATH = DATA_DIR / "chatss_ia.db"
 
 # Modelos disponíveis
 AVAILABLE_MODELS = {
-    "GPT-4.1 Mini (Rápido)": "gpt-4.1-mini",
-    "GPT-4.1 Nano (Econômico)": "gpt-4.1-nano",
-    "Gemini 2.5 Flash": "gemini-2.5-flash",
-    "GPT-4o (Poderoso)": "gpt-4o",
-    "GPT-4o Mini": "gpt-4o-mini",
-    "GPT-3.5 Turbo": "gpt-3.5-turbo",
+    "Llama 3.3 70B (Grátis/Groq)": "groq:llama-3.3-70b-versatile",
+    "Llama 3.1 8B (Grátis/Groq)": "groq:llama-3.1-8b-instant",
+    "Mixtral 8x7B (Grátis/Groq)": "groq:mixtral-8x7b-32768",
+    "GPT-4o (OpenAI - Requer Saldo)": "openai:gpt-4o",
+    "GPT-4o Mini (OpenAI - Requer Saldo)": "openai:gpt-4o-mini",
 }
 
 # Templates de agentes
