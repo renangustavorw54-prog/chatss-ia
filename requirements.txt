@@ -7,3 +7,5 @@ streamlit-mic-recorder
 gTTS
 SpeechRecognition
 pydub
+moviepy
+opencv-python-headless

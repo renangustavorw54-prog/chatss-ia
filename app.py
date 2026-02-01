@@ -12,6 +12,8 @@ from gtts import gTTS
 import io
 import speech_recognition as sr
 from pydub import AudioSegment
+from PIL import Image, ImageEnhance
+import moviepy.editor as mp
 
 # Configuração da Página
 st.set_page_config(
@@ -92,78 +94,102 @@ def transcribe_audio_free(audio_bytes):
             return recognizer.recognize_google(audio_data, language="pt-BR")
     except: return "[Áudio não compreendido]"
 
-def generate_image_dalle(prompt, api_key):
-    try:
-        client = OpenAI(api_key=api_key)
-        response = client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1,
-        )
-        return response.data[0].url
-    except Exception as e:
-        return f"Erro ao gerar imagem: {e}"
+def improve_image_quality(image_bytes):
+    img = Image.open(io.BytesIO(image_bytes))
+    # Melhorar Nitidez
+    enhancer = ImageEnhance.Sharpness(img)
+    img = enhancer.enhance(2.0)
+    # Melhorar Contraste
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.2)
+    # Melhorar Cor
+    enhancer = ImageEnhance.Color(img)
+    img = enhancer.enhance(1.1)
+    
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+def process_video_reels(video_bytes):
+    # Salvar temporariamente
+    with open("temp_video.mp4", "wb") as f:
+        f.write(video_bytes)
+    
+    clip = mp.VideoFileClip("temp_video.mp4")
+    # Cortar para 9:16 (Reels) se necessário
+    w, h = clip.size
+    target_ratio = 9/16
+    current_ratio = w/h
+    
+    if current_ratio > target_ratio:
+        new_w = h * target_ratio
+        clip = clip.crop(x_center=w/2, width=new_w)
+    
+    # Limitar a 60 segundos para Reels
+    if clip.duration > 60:
+        clip = clip.subclip(0, 60)
+        
+    clip.write_videofile("reels_output.mp4", codec="libx264")
+    with open("reels_output.mp4", "rb") as f:
+        return f.read()
 
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    # Exibir Logo se existir
     if os.path.exists("static/logo.png"):
         st.image("static/logo.png", use_container_width=True)
-    else:
-        st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
     
     st.subheader("⚙️ Configurações")
-    model_option = st.selectbox("Modelo de IA", list(AVAILABLE_MODELS.keys()), index=3) # GPT-4o como padrão para visão
+    model_option = st.selectbox("Modelo de IA", list(AVAILABLE_MODELS.keys()), index=3)
     model_full_id = AVAILABLE_MODELS[model_option]
     provider, model_id = model_full_id.split(":")
     
     if provider == "openai":
         st.session_state.openai_key = st.text_input("Chave OpenAI", value=st.session_state.openai_key, type="password")
         api_key = st.session_state.openai_key
-        base_url = None
     else:
         st.session_state.groq_key = st.text_input("Chave Groq", value=st.session_state.groq_key, type="password")
         api_key = st.session_state.groq_key
-        base_url = "https://api.groq.com/openai/v1"
     
     with st.expander("🔗 Conexões Externas"):
         st.session_state.github_token = st.text_input("Token GitHub", value=st.session_state.github_token, type="password")
-        st.session_state.gmail_token = st.text_input("Token Gmail/App Password", value=st.session_state.gmail_token, type="password")
-        st.info("Esses tokens permitem que a IA gerencie seus repositórios e e-mails.")
+        st.session_state.gmail_token = st.text_input("Token Gmail", value=st.session_state.gmail_token, type="password")
 
     st.session_state.voice_enabled = st.toggle("🔊 Resposta em Voz", value=st.session_state.voice_enabled)
     
     st.divider()
-    st.subheader("📜 Histórico")
     if st.button("➕ Nova Conversa", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
         st.rerun()
-    
-    try:
-        conversations = db.get_conversations()
-        for conv in conversations:
-            if st.button(f"💬 {conv['title'][:20]}", key=f"c_{conv['id']}", use_container_width=True):
-                st.session_state.current_conversation_id = conv['id']
-                st.session_state.messages = db.get_messages(conv['id'])
-                st.rerun()
-    except: pass
 
 # --- ÁREA PRINCIPAL ---
-st.title("🤖 ChatSS IA: Agente de Elite")
+st.title("🤖 ChatSS IA: Estúdio de Elite")
 
-# Ferramentas (Microfone e Upload)
-col1, col2 = st.columns([0.7, 0.3])
-with col1:
-    uploaded_files = st.file_uploader("📁 Enviar Arquivos/Imagens para Análise", accept_multiple_files=True)
-with col2:
-    st.write("🎤 Gravar Voz:")
-    audio_record = mic_recorder(start_prompt="Gravar", stop_prompt="Enviar", just_once=True, key='recorder')
+# Ferramentas Multimídia
+with st.expander("🎨 Ferramentas de Edição (Imagem e Vídeo)"):
+    col_img, col_vid = st.columns(2)
+    with col_img:
+        img_file = st.file_uploader("Melhorar Qualidade de Foto", type=['png', 'jpg', 'jpeg'])
+        if img_file and st.button("✨ Melhorar Foto"):
+            with st.spinner("Processando imagem..."):
+                improved_img = improve_image_quality(img_file.read())
+                st.image(improved_img, caption="Imagem Melhorada")
+                st.download_button("Baixar Foto HD", improved_img, "foto_hd.png")
+    
+    with col_vid:
+        vid_file = st.file_uploader("Criar Reels (Corte 9:16)", type=['mp4', 'mov'])
+        if vid_file and st.button("🎬 Gerar Reels"):
+            with st.spinner("Editando vídeo para Reels..."):
+                reels_vid = process_video_reels(vid_file.read())
+                st.video(reels_vid)
+                st.download_button("Baixar Reels", reels_vid, "meu_reels.mp4")
+
+# Chat Principal
+uploaded_files = st.file_uploader("📁 Enviar para Análise", accept_multiple_files=True)
+audio_record = mic_recorder(start_prompt="🎤 Gravar", stop_prompt="Enviar", just_once=True, key='recorder')
 
 # Exibir Mensagens
 for message in st.session_state.messages:
@@ -172,42 +198,22 @@ for message in st.session_state.messages:
             for item in message["content"]:
                 if item["type"] == "text": st.markdown(item["text"])
                 elif item["type"] == "image_url": st.image(item["image_url"]["url"])
-        else:
-            st.markdown(message["content"])
+        else: st.markdown(message["content"])
 
-# Input de Chat
-user_input = st.chat_input("O que vamos construir hoje?")
+user_input = st.chat_input("O que vamos criar hoje?")
 
-# Processar Áudio
 if audio_record and audio_record.get('id') != st.session_state.last_audio_id:
     st.session_state.last_audio_id = audio_record.get('id')
     with st.spinner("Ouvindo..."):
         user_input = transcribe_audio_free(audio_record['bytes'])
 
-# Lógica de Chat
 if user_input:
     if not api_key:
         st.error("⚠️ Insira sua chave na barra lateral!")
     else:
-        # Lógica de Criação de Imagem
-        if "crie uma imagem" in user_input.lower() or "gerar imagem" in user_input.lower():
-            if provider != "openai":
-                st.warning("A geração de imagens requer uma chave da OpenAI.")
-            else:
-                with st.spinner("Gerando sua imagem com DALL-E 3..."):
-                    img_url = generate_image_dalle(user_input, api_key)
-                    if img_url.startswith("http"):
-                        st.session_state.messages.append({"role": "user", "content": user_input})
-                        st.session_state.messages.append({"role": "assistant", "content": f"Aqui está a imagem que você pediu: [Imagem]({img_url})"})
-                        st.image(img_url)
-                        st.rerun()
-                    else:
-                        st.error(img_url)
-
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(user_input[:30], model_id, "Assistente")
         
-        # Preparar conteúdo (Texto + Imagens)
         message_content = [{"type": "text", "text": user_input}]
         if uploaded_files:
             for f in uploaded_files:
@@ -229,18 +235,13 @@ if user_input:
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            client = OpenAI(api_key=api_key, base_url=base_url)
+            client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1" if "groq" in model_id else None)
             
-            # System Prompt com instruções de GitHub/Gmail
-            sys_msg = f"Você é o ChatSS IA, um agente de elite. Você pode ver imagens, criar imagens e gerenciar conexões. GitHub Token: {st.session_state.github_token}, Gmail Token: {st.session_state.gmail_token}. Use essas informações se o usuário pedir para mexer em repositórios ou e-mails. Responda sempre em português brasileiro."
-            
-            api_messages = [{"role": "system", "content": sys_msg}]
-            for m in st.session_state.messages[-10:]:
-                api_messages.append({"role": m["role"], "content": m["content"]})
+            sys_msg = f"Você é o ChatSS IA Estúdio. Você pode editar imagens e vídeos. GitHub: {st.session_state.github_token}, Gmail: {st.session_state.gmail_token}. Responda em português."
             
             response = client.chat.completions.create(
                 model=model_id,
-                messages=api_messages,
+                messages=[{"role": "system", "content": sys_msg}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-10:]],
                 stream=True,
             )
             for chunk in response:
