@@ -8,7 +8,7 @@ from utils.file_handler import process_uploaded_file, export_conversation_to_jso
 
 # Configuração da Página
 st.set_page_config(
-    page_title="ChatSS IA - Elite Agent",
+    page_title="ChatSS IA - Agente de Elite",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -55,13 +55,13 @@ if "messages" not in st.session_state:
 if "api_key" not in st.session_state:
     st.session_state.api_key = os.environ.get("OPENAI_API_KEY", "")
 
-# --- SIDEBAR ---
+# --- BARRA LATERAL (SIDEBAR) ---
 with st.sidebar:
     st.title("🤖 ChatSS IA")
     st.subheader("Configurações de Elite")
     
     # Configuração de API
-    api_key = st.text_input("Chave de API OpenAI", value=st.session_state.api_key, type="password", help="Sua chave é usada apenas localmente.")
+    api_key = st.text_input("Chave de API OpenAI", value=st.session_state.api_key, type="password", help="Sua chave é usada apenas localmente e não é salva no servidor.")
     if api_key:
         st.session_state.api_key = api_key
         os.environ["OPENAI_API_KEY"] = api_key
@@ -70,13 +70,13 @@ with st.sidebar:
     model_option = st.selectbox("Modelo de IA", list(AVAILABLE_MODELS.keys()), index=0)
     model_id = AVAILABLE_MODELS[model_option]
     
-    agent_option = st.selectbox("Template de Agente", list(AGENT_TEMPLATES.keys()), index=0)
+    agent_option = st.selectbox("Perfil do Agente", list(AGENT_TEMPLATES.keys()), index=0)
     agent_config = AGENT_TEMPLATES[agent_option]
     
     # Parâmetros Avançados
-    with st.expander("Parâmetros Avançados"):
-        temp = st.slider("Temperatura", 0.0, 2.0, agent_config["temperature"], 0.1)
-        max_tokens = st.number_input("Max Tokens", 100, 128000, 4000)
+    with st.expander("Ajustes Avançados"):
+        temp = st.slider("Criatividade (Temperatura)", 0.0, 2.0, agent_config["temperature"], 0.1)
+        max_tokens = st.number_input("Limite de Resposta (Tokens)", 100, 128000, 4000)
     
     st.divider()
     
@@ -123,7 +123,8 @@ uploaded_file = st.file_uploader("Anexar arquivo para análise (PDF, DOCX, TXT, 
 
 # Exibir Mensagens
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    role_label = "user" if message["role"] == "user" else "assistant"
+    with st.chat_message(role_label):
         st.markdown(message["content"])
 
 # Lógica de Chat

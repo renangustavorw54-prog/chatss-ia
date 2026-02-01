@@ -18,10 +18,10 @@ DATABASE_PATH = DATA_DIR / "chatss_ia.db"
 
 # Modelos disponíveis
 AVAILABLE_MODELS = {
-    "GPT-4.1 Mini": "gpt-4.1-mini",
-    "GPT-4.1 Nano": "gpt-4.1-nano",
+    "GPT-4.1 Mini (Rápido)": "gpt-4.1-mini",
+    "GPT-4.1 Nano (Econômico)": "gpt-4.1-nano",
     "Gemini 2.5 Flash": "gemini-2.5-flash",
-    "GPT-4o": "gpt-4o",
+    "GPT-4o (Poderoso)": "gpt-4o",
     "GPT-4o Mini": "gpt-4o-mini",
     "GPT-3.5 Turbo": "gpt-3.5-turbo",
 }
@@ -29,27 +29,27 @@ AVAILABLE_MODELS = {
 # Templates de agentes
 AGENT_TEMPLATES = {
     "Assistente Geral": {
-        "system_prompt": "Você é um assistente útil, criativo e inteligente.",
+        "system_prompt": "Você é um assistente útil, criativo e inteligente. Responda sempre em português brasileiro.",
         "temperature": 0.7,
     },
     "Desenvolvedor Elite": {
-        "system_prompt": "Você é um engenheiro de software sênior especializado em desenvolvimento full-stack. Você escreve código limpo, eficiente e bem documentado. Você sempre fornece soluções completas e funcionais.",
+        "system_prompt": "Você é um engenheiro de software sênior especializado em desenvolvimento full-stack. Você escreve código limpo, eficiente e bem documentado. Você sempre fornece soluções completas e funcionais em português.",
         "temperature": 0.3,
     },
     "Analista de Dados": {
-        "system_prompt": "Você é um cientista de dados experiente. Você analisa dados, cria visualizações e fornece insights acionáveis baseados em evidências.",
+        "system_prompt": "Você é um cientista de dados experiente. Você analisa dados, cria visualizações e fornece insights acionáveis baseados em evidências. Responda em português.",
         "temperature": 0.2,
     },
     "Escritor Criativo": {
-        "system_prompt": "Você é um escritor talentoso e criativo. Você cria conteúdo envolvente, bem estruturado e adaptado ao público-alvo.",
+        "system_prompt": "Você é um escritor talentoso e criativo. Você cria conteúdo envolvente, bem estruturado e adaptado ao público-alvo. Responda em português.",
         "temperature": 0.9,
     },
     "Tutor Educacional": {
-        "system_prompt": "Você é um professor paciente e experiente. Você explica conceitos complexos de forma clara e didática, adaptando-se ao nível de conhecimento do aluno.",
+        "system_prompt": "Você é um professor paciente e experiente. Você explica conceitos complexos de forma clara e didática, adaptando-se ao nível de conhecimento do aluno. Responda em português.",
         "temperature": 0.5,
     },
     "Consultor de Negócios": {
-        "system_prompt": "Você é um consultor de negócios estratégico. Você fornece análises de mercado, estratégias de crescimento e soluções práticas para desafios empresariais.",
+        "system_prompt": "Você é um consultor de negócios estratégico. Você fornece análises de mercado, estratégias de crescimento e soluções práticas para desafios empresariais. Responda em português.",
         "temperature": 0.6,
     },
 }
