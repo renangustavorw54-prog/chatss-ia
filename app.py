@@ -20,64 +20,20 @@ st.set_page_config(
 # Inicializar Banco de Dados
 db = DatabaseManager()
 
-# --- DESIGN FORÇADO (AZUL ESCURO E PRETO) - REMOVENDO VERMELHO ---
+# --- DESIGN FORÇADO (AZUL ESCURO E PRETO) ---
 st.markdown("""
 <style>
-    /* Fundo Principal */
-    .stApp {
-        background-color: #0E1117 !important;
-        color: #E0E0E0 !important;
-    }
-    
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #0D1117 !important;
-        border-right: 1px solid #1F2328 !important;
-    }
-    
-    /* BARRA DE DIGITAÇÃO - FORÇAR AZUL ESCURO */
-    .stChatInputContainer {
-        background-color: #0E1117 !important;
-    }
+    .stApp { background-color: #0E1117 !important; color: #E0E0E0 !important; }
+    [data-testid="stSidebar"] { background-color: #0D1117 !important; border-right: 1px solid #1F2328 !important; }
     .stChatInputContainer textarea {
         background-color: #161B22 !important;
         color: #FFFFFF !important;
-        border: 2px solid #005FB8 !important; /* Azul Escuro */
+        border: 2px solid #005FB8 !important;
         border-radius: 10px !important;
     }
-    
-    /* Remover qualquer borda vermelha de foco */
-    textarea:focus {
-        border-color: #58A6FF !important;
-        box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25) !important;
-    }
-
-    /* Botões de Envio e Ícones */
-    button[data-testid="stChatInputSubmit"] {
-        color: #58A6FF !important;
-    }
-
-    /* Mensagens de Chat */
-    .stChatMessage {
-        background-color: #161B22 !important;
-        border: 1px solid #30363D !important;
-        border-radius: 15px !important;
-    }
-    [data-testid="stChatMessageUser"] {
-        border-left: 5px solid #005FB8 !important; /* Azul Escuro */
-    }
-    
-    /* Títulos */
-    h1, h2, h3 {
-        color: #58A6FF !important;
-    }
-
-    /* Estilo para botões gerais */
-    .stButton>button {
-        background-color: #21262D !important;
-        color: #58A6FF !important;
-        border: 1px solid #30363D !important;
-    }
+    .stChatMessage { background-color: #161B22 !important; border: 1px solid #30363D !important; border-radius: 15px !important; }
+    [data-testid="stChatMessageUser"] { border-left: 5px solid #005FB8 !important; }
+    h1, h2, h3 { color: #58A6FF !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,18 +46,22 @@ if "voice_enabled" not in st.session_state: st.session_state.voice_enabled = Fal
 
 def text_to_speech(text):
     try:
-        tts = gTTS(text=text, lang='pt', tld='com.br')
+        # gTTS com sotaque brasileiro suave
+        tts = gTTS(text=text, lang='pt', tld='com.br', slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         return fp
     except:
         return None
 
+def encode_image(image_file):
+    return base64.b64encode(image_file.read()).decode('utf-8')
+
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
     
-    model_option = st.selectbox("🚀 Escolha o Modelo", list(AVAILABLE_MODELS.keys()), index=0)
+    model_option = st.selectbox("🚀 Escolha o Modelo", list(AVAILABLE_MODELS.keys()), index=3) # Default para GPT-4o
     model_full_id = AVAILABLE_MODELS[model_option]
     provider, model_id = model_full_id.split(":")
     
@@ -114,23 +74,16 @@ with st.sidebar:
         api_key = st.session_state.groq_key
         base_url = "https://api.groq.com/openai/v1"
     
-    st.session_state.voice_enabled = st.toggle("🔊 IA Falar com Você", value=st.session_state.voice_enabled)
+    st.session_state.voice_enabled = st.toggle("🔊 Voz Suave (Estilo Siri)", value=st.session_state.voice_enabled)
     
     st.divider()
     if st.button("➕ Nova Conversa", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
         st.rerun()
-    
-    conversations = db.get_conversations()
-    for conv in conversations:
-        if st.button(f"💬 {conv['title'][:20]}", key=f"c_{conv['id']}", use_container_width=True):
-            st.session_state.current_conversation_id = conv['id']
-            st.session_state.messages = db.get_messages(conv['id'])
-            st.rerun()
 
 # --- ÁREA PRINCIPAL ---
-st.markdown("<h2 style='text-align: center;'>Central Multimídia & Voz</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Visão & Voz Inteligente</h2>", unsafe_allow_html=True)
 
 # Container de Multimídia
 with st.container():
@@ -144,7 +97,14 @@ with st.container():
 # Exibir Mensagens
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        if isinstance(message["content"], list):
+            for item in message["content"]:
+                if item["type"] == "text":
+                    st.markdown(item["text"])
+                elif item["type"] == "image_url":
+                    st.image(item["image_url"]["url"])
+        else:
+            st.markdown(message["content"])
 
 # Lógica de Chat
 if prompt := st.chat_input("O que vamos construir hoje?"):
@@ -154,22 +114,31 @@ if prompt := st.chat_input("O que vamos construir hoje?"):
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(prompt[:30], model_id, "Assistente")
         
-        # Processar arquivos
-        context_files = ""
+        # Preparar conteúdo da mensagem (Texto + Imagens)
+        message_content = [{"type": "text", "text": prompt}]
+        
         if uploaded_files:
             for f in uploaded_files:
                 if f.type.startswith("image/"):
-                    context_files += f"\n[Imagem Enviada: {f.name}]"
+                    base64_image = encode_image(f)
+                    message_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{f.type};base64,{base64_image}"}
+                    })
                 else:
                     content = process_uploaded_file(f.name, f.read())
-                    context_files += f"\n[Arquivo: {f.name}]\n{content}"
+                    message_content[0]["text"] += f"\n\n[Arquivo: {f.name}]\n{content}"
         
-        full_prompt = prompt + context_files
-        st.session_state.messages.append({"role": "user", "content": full_prompt})
-        db.add_message(st.session_state.current_conversation_id, "user", full_prompt)
+        st.session_state.messages.append({"role": "user", "content": message_content})
+        db.add_message(st.session_state.current_conversation_id, "user", str(message_content))
         
         with st.chat_message("user"):
-            st.markdown(full_prompt)
+            if len(message_content) > 1:
+                st.markdown(prompt)
+                for item in message_content[1:]:
+                    st.image(item["image_url"]["url"])
+            else:
+                st.markdown(prompt)
         
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
@@ -177,11 +146,19 @@ if prompt := st.chat_input("O que vamos construir hoje?"):
             
             try:
                 client = OpenAI(api_key=api_key, base_url=base_url)
+                
+                # Ajustar mensagens para o formato da API
+                api_messages = [{"role": "system", "content": "Você é um assistente de elite com visão computacional. Você pode ver imagens e descrevê-las com precisão. Sua voz é suave e amigável. Responda sempre em português."}]
+                for m in st.session_state.messages[-10:]:
+                    api_messages.append({"role": m["role"], "content": m["content"]})
+                
                 response = client.chat.completions.create(
-                    model=model_id,
-                    messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+                    model=model_id if provider == "openai" else model_id,
+                    messages=api_messages,
+                    max_tokens=1000,
                     stream=True,
                 )
+                
                 for chunk in response:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
@@ -198,7 +175,3 @@ if prompt := st.chat_input("O que vamos construir hoje?"):
                     
             except Exception as e:
                 st.error(f"Erro: {str(e)}")
-
-# Se houver áudio gravado (simulação de envio)
-if audio_record and not prompt:
-    st.info("Áudio gravado com sucesso! Digite algo para enviar junto ou clique em enviar.")
