@@ -42,16 +42,24 @@ def process_uploaded_file(file_name: str, file_bytes: bytes) -> str:
 def export_conversation_to_json(conversation: Dict, messages: List[Dict]) -> str:
     """Exporta a conversa para formato JSON"""
     data = {
-        "conversation": conversation,
+        "conversation": {
+            "title": conversation.get('title', 'Conversa'),
+            "model": conversation.get('model', 'Desconhecido'),
+            "created_at": conversation.get('created_at', 'N/A')
+        },
         "messages": messages
     }
     return json.dumps(data, indent=4, ensure_ascii=False)
 
 def export_conversation_to_text(conversation: Dict, messages: List[Dict]) -> str:
     """Exporta a conversa para formato de texto legível"""
-    output = f"Conversa: {conversation['title']}\n"
-    output += f"Modelo: {conversation['model']}\n"
-    output += f"Data: {conversation['created_at']}\n"
+    title = conversation.get('title', 'Conversa')
+    model = conversation.get('model', 'Desconhecido')
+    created_at = conversation.get('created_at', 'N/A')
+    
+    output = f"Conversa: {title}\n"
+    output += f"Modelo: {model}\n"
+    output += f"Data: {created_at}\n"
     output += "="*50 + "\n\n"
     
     for msg in messages:
