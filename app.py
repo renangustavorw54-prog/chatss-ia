@@ -32,13 +32,6 @@ except Exception as e:
     st.error(f"Erro ao iniciar banco de dados: {e}")
     st.stop()
 
-# Função para carregar imagem em Base64 (Garante exibição no Streamlit Cloud)
-def get_image_base64(path):
-    if os.path.exists(path):
-        with open(path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode()
-    return None
-
 # --- DESIGN ULTIMATE (ESTILO CHATGPT PLUS) ---
 st.markdown("""
 <style>
@@ -74,10 +67,12 @@ st.markdown("""
         display: flex;
         justify-content: center;
         margin-bottom: 20px;
+        padding: 10px;
     }
     .sidebar-logo img {
-        width: 150px;
-        border-radius: 20px;
+        width: 180px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(88, 166, 255, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -141,15 +136,12 @@ if st.session_state.user_location is None:
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    # EXIBIÇÃO DO LOGO (FORÇADA COM BASE64)
-    logo_base64 = get_image_base64("static/logo.png")
-    if logo_base64:
-        st.markdown(
-            f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}"></div>',
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
+    # EXIBIÇÃO DO LOGO VIA LINK DIRETO (MÉTODO INFALÍVEL)
+    logo_url = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663329205719/XBJYJOWKZYNIjSeK.png"
+    st.markdown(
+        f'<div class="sidebar-logo"><img src="{logo_url}"></div>',
+        unsafe_allow_html=True
+    )
     
     st.subheader("⚙️ Configurações Plus")
     model_option = st.selectbox("Modelo", list(AVAILABLE_MODELS.keys()), index=0)
