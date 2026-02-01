@@ -15,7 +15,7 @@ from pydub import AudioSegment
 
 # Configuração da Página
 st.set_page_config(
-    page_title="ChatSS IA",
+    page_title="ChatSS IA - Elite Agent",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -28,86 +28,69 @@ except Exception as e:
     st.error(f"Erro ao iniciar banco de dados: {e}")
     st.stop()
 
-# --- DESIGN PREMIUM ESTILO CHATGPT/GEMINI ---
+# --- DESIGN INICIAL MELHORADO (ARREDONDADO, AZUL E PRETO) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-    * { font-family: 'Inter', sans-serif; }
-    
+    /* Fundo e Cores Base */
     .stApp {
-        background-color: #171717 !important;
-        color: #ececec !important;
-    }
-
-    /* Sidebar Estilo ChatGPT */
-    [data-testid="stSidebar"] {
-        background-color: #0D0D0D !important;
-        border-right: 1px solid #2f2f2f !important;
+        background-color: #0E1117 !important;
+        color: #E0E0E0 !important;
     }
     
-    /* Inputs na Sidebar */
-    .stSidebar .stTextInput input, .stSidebar .stSelectbox select {
-        background-color: #212121 !important;
-        color: #ececec !important;
-        border: 1px solid #424242 !important;
+    /* Sidebar Arredondada */
+    [data-testid="stSidebar"] {
+        background-color: #161B22 !important;
+        border-right: 1px solid #30363D !important;
     }
-
-    /* Botão Nova Conversa */
+    
+    /* Mensagens de Chat Arredondadas */
+    .stChatMessage {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+        border-radius: 25px !important; /* Super Arredondado */
+        padding: 15px !important;
+        margin-bottom: 15px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    /* Mensagem do Usuário (Destaque Azul Escuro) */
+    [data-testid="stChatMessageUser"] {
+        background-color: #0D1117 !important;
+        border-left: 6px solid #005FB8 !important;
+        border-radius: 25px !important;
+    }
+    
+    /* Barra de Digitação Arredondada - Azul Escuro */
+    .stChatInputContainer textarea {
+        background-color: #161B22 !important;
+        color: #FFFFFF !important;
+        border: 2px solid #005FB8 !important;
+        border-radius: 30px !important; /* Estilo Pílula */
+        padding: 12px 20px !important;
+    }
+    
+    /* Botões Arredondados */
     .stButton>button {
-        background-color: #212121 !important;
-        color: #ececec !important;
-        border: 1px solid #424242 !important;
-        border-radius: 10px !important;
-        transition: 0.2s;
+        background-color: #21262D !important;
+        color: #58A6FF !important;
+        border: 1px solid #30363D !important;
+        border-radius: 15px !important;
+        transition: all 0.3s ease;
     }
     .stButton>button:hover {
-        background-color: #2f2f2f !important;
-        border-color: #676767 !important;
+        border-color: #58A6FF !important;
+        background-color: #30363D !important;
+    }
+    
+    /* Títulos */
+    h1, h2, h3 {
+        color: #58A6FF !important;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* Container de Mensagens */
-    .stChatMessage {
-        background-color: transparent !important;
-        padding: 20px 0 !important;
-        max-width: 850px !important;
-        margin: 0 auto !important;
-    }
-    
-    /* Bolhas de Chat */
-    [data-testid="stChatMessageUser"] {
-        background-color: #2f2f2f !important;
-        border-radius: 20px !important;
-        padding: 15px !important;
-        margin-bottom: 10px !important;
-    }
-    
-    /* Barra de Digitação Estilo Gemini */
-    .stChatInputContainer {
-        background-color: transparent !important;
-        padding-bottom: 30px !important;
-    }
-    
-    .stChatInputContainer textarea {
-        background-color: #2f2f2f !important;
-        color: #ececec !important;
-        border: 1px solid #424242 !important;
-        border-radius: 25px !important;
-        padding: 15px 25px !important;
-        max-width: 850px !important;
-        margin: 0 auto !important;
-    }
-
-    /* Esconder elementos desnecessários */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    .main-title {
-        text-align: center;
-        font-size: 2rem;
-        font-weight: 600;
-        margin-top: 10vh;
-        color: #ececec;
+    /* Inputs e Selects Arredondados */
+    .stTextInput input, .stSelectbox div {
+        border-radius: 12px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -140,22 +123,21 @@ def transcribe_audio_free(audio_bytes):
             return recognizer.recognize_google(audio_data, language="pt-BR")
     except: return "[Áudio não compreendido]"
 
-# --- BARRA LATERAL (CONFIGURAÇÕES E HISTÓRICO) ---
+# --- BARRA LATERAL (ESTRUTURA INICIAL) ---
 with st.sidebar:
-    st.markdown("<h2 style='color: #58A6FF;'>ChatSS IA</h2>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
     
-    # CONFIGURAÇÕES VISÍVEIS
-    st.markdown("### ⚙️ Configurações")
+    st.subheader("⚙️ Configurações")
     model_option = st.selectbox("Modelo de IA", list(AVAILABLE_MODELS.keys()), index=0)
     model_full_id = AVAILABLE_MODELS[model_option]
     provider, model_id = model_full_id.split(":")
     
     if provider == "openai":
-        st.session_state.openai_key = st.text_input("Chave OpenAI (sk-...)", value=st.session_state.openai_key, type="password")
+        st.session_state.openai_key = st.text_input("Chave OpenAI", value=st.session_state.openai_key, type="password")
         api_key = st.session_state.openai_key
         base_url = None
     else:
-        st.session_state.groq_key = st.text_input("Chave Groq (gsk-...)", value=st.session_state.groq_key, type="password")
+        st.session_state.groq_key = st.text_input("Chave Groq", value=st.session_state.groq_key, type="password")
         api_key = st.session_state.groq_key
         base_url = "https://api.groq.com/openai/v1"
     
@@ -163,40 +145,39 @@ with st.sidebar:
     
     st.divider()
     
-    # HISTÓRICO
+    st.subheader("📜 Histórico")
     if st.button("➕ Nova Conversa", use_container_width=True):
         st.session_state.current_conversation_id = None
         st.session_state.messages = []
         st.rerun()
     
-    st.markdown("### 📜 Histórico")
     try:
         conversations = db.get_conversations()
         for conv in conversations:
-            if st.button(f"💬 {conv['title'][:20]}...", key=f"c_{conv['id']}", use_container_width=True):
+            if st.button(f"💬 {conv['title'][:20]}", key=f"c_{conv['id']}", use_container_width=True):
                 st.session_state.current_conversation_id = conv['id']
                 st.session_state.messages = db.get_messages(conv['id'])
                 st.rerun()
     except: pass
 
 # --- ÁREA PRINCIPAL ---
-
-if not st.session_state.messages:
-    st.markdown("<div class='main-title'>Como posso ajudar hoje?</div>", unsafe_allow_html=True)
-else:
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+st.title("🤖 ChatSS IA: Agente de Elite")
 
 # Ferramentas (Microfone e Upload)
-col_tools1, col_tools2, _ = st.columns([0.1, 0.1, 0.8])
-with col_tools1:
-    audio_record = mic_recorder(start_prompt="🎤", stop_prompt="✅", just_once=True, key='recorder')
-with col_tools2:
-    uploaded_files = st.file_uploader("📎", accept_multiple_files=True, label_visibility="collapsed")
+col1, col2 = st.columns([0.7, 0.3])
+with col1:
+    uploaded_files = st.file_uploader("📁 Enviar Arquivos/Imagens", accept_multiple_files=True)
+with col2:
+    st.write("🎤 Gravar Voz:")
+    audio_record = mic_recorder(start_prompt="Gravar", stop_prompt="Enviar", just_once=True, key='recorder')
+
+# Exibir Mensagens
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 # Input de Chat
-user_input = st.chat_input("Digite sua mensagem...")
+user_input = st.chat_input("O que vamos construir hoje?")
 
 # Processar Áudio
 if audio_record and audio_record.get('id') != st.session_state.last_audio_id:
