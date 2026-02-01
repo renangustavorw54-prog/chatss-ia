@@ -9,3 +9,5 @@ SpeechRecognition
 pydub
 moviepy
 opencv-python-headless
+matplotlib
+pandas
