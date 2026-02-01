@@ -1,14 +1,14 @@
 {
-  "name": "ChatSS IA Elite",
+  "name": "ChatSS IA - Agente de Elite",
   "short_name": "ChatSS IA",
   "description": "Seu Agente de IA Ilimitado e Privado",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0E1117",
-  "theme_color": "#FF4B4B",
+  "theme_color": "#005FB8",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1698/1698535.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
