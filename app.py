@@ -11,8 +11,17 @@ st.set_page_config(
     page_title="ChatSS IA - Elite Agent",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
+
+# Injeção de Meta Tags para PWA e Mobile
+st.markdown(f"""
+    <link rel="manifest" href="https://raw.githubusercontent.com/renangustavorw54-prog/chatss-ia/master/static/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1698/1698535.png">
+""", unsafe_allow_html=True)
 
 # Inicializar Banco de Dados
 db = DatabaseManager()
