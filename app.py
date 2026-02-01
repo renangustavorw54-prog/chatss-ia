@@ -72,11 +72,36 @@ if "groq_key" not in st.session_state: st.session_state.groq_key = ""
 if "voice_enabled" not in st.session_state: st.session_state.voice_enabled = True
 if "permanent_memory" not in st.session_state: st.session_state.permanent_memory = {}
 if "last_audio_id" not in st.session_state: st.session_state.last_audio_id = None
+if "user_location" not in st.session_state: st.session_state.user_location = None
 
-def search_web(query):
+def get_user_location():
     try:
-        return f"Resultado da busca para: {query}. (Conexão Web Ativa)"
-    except: return "Busca indisponível no momento."
+        # Tenta obter localização via IP (serviço gratuito ip-api)
+        response = requests.get("http://ip-api.com/json/", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "cidade": data.get("city"),
+                "estado": data.get("regionName"),
+                "pais": data.get("country"),
+                "lat": data.get("lat"),
+                "lon": data.get("lon")
+            }
+    except:
+        return None
+    return None
+
+def get_weather_auto(location_data):
+    if not location_data:
+        return "Localização não detectada."
+    try:
+        city = location_data['cidade']
+        response = requests.get(f"https://wttr.in/{city}?format=%C+%t", timeout=5)
+        if response.status_code == 200:
+            return f"{response.text} em {city}"
+        return f"Não consegui acessar o clima para {city}."
+    except:
+        return "Erro ao buscar clima."
 
 def text_to_speech_natural(text):
     try:
@@ -98,6 +123,10 @@ def transcribe_audio_free(audio_bytes):
             return recognizer.recognize_google(audio_data, language="pt-BR")
     except: return "[Áudio não compreendido]"
 
+# Tentar detectar localização na inicialização
+if st.session_state.user_location is None:
+    st.session_state.user_location = get_user_location()
+
 # --- BARRA LATERAL ---
 with st.sidebar:
     if os.path.exists("static/logo.png"):
@@ -108,24 +137,30 @@ with st.sidebar:
     model_full_id = AVAILABLE_MODELS[model_option]
     provider, model_id = model_full_id.split(":")
     
-    # Lógica de exibição de chaves baseada no provedor do modelo selecionado
     if provider == "openai":
-        st.session_state.openai_key = st.text_input("Chave OpenAI (sk-...)", value=st.session_state.openai_key, type="password")
+        st.session_state.openai_key = st.text_input("Chave OpenAI", value=st.session_state.openai_key, type="password")
         current_api_key = st.session_state.openai_key
         current_base_url = None
     else:
-        st.session_state.groq_key = st.text_input("Chave Groq (gsk-...)", value=st.session_state.groq_key, type="password")
+        st.session_state.groq_key = st.text_input("Chave Groq", value=st.session_state.groq_key, type="password")
         current_api_key = st.session_state.groq_key
         current_base_url = "https://api.groq.com/openai/v1"
     
     st.session_state.voice_enabled = st.toggle("🔊 Voz Natural Ativa", value=st.session_state.voice_enabled)
     
     st.divider()
+    st.subheader("📍 Localização Atual")
+    if st.session_state.user_location:
+        loc = st.session_state.user_location
+        st.success(f"📍 {loc['cidade']}, {loc['estado']}")
+    else:
+        st.warning("📍 Localização não detectada")
+
     st.subheader("🧠 Memória Permanente")
     if st.session_state.permanent_memory:
         st.json(st.session_state.permanent_memory)
     else:
-        st.info("A IA aprenderá sobre você durante a conversa.")
+        st.info("A IA aprenderá sobre você.")
 
     if st.button("➕ Novo Chat", use_container_width=True):
         st.session_state.current_conversation_id = None
@@ -162,9 +197,10 @@ if user_input:
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(user_input[:30], model_id, "Assistente")
         
-        if "pesquise" in user_input.lower() or "quem é" in user_input.lower():
-            search_res = search_web(user_input)
-            user_input += f"\n\n[SISTEMA: Resultado da Pesquisa Web: {search_res}]"
+        # Lógica de Clima com Localização Automática
+        if "tempo" in user_input.lower() or "temperatura" in user_input.lower() or "clima" in user_input.lower():
+            weather_info = get_weather_auto(st.session_state.user_location)
+            user_input += f"\n\n[SISTEMA: Localização detectada: {st.session_state.user_location}. Clima atual: {weather_info}]"
 
         st.session_state.messages.append({"role": "user", "content": user_input})
         db.add_message(st.session_state.current_conversation_id, "user", user_input)
@@ -177,10 +213,10 @@ if user_input:
             full_response = ""
             
             try:
-                # Inicializar cliente com a chave e URL corretas do provedor selecionado
                 client = OpenAI(api_key=current_api_key, base_url=current_base_url)
                 
                 sys_msg = f"""Você é o ChatSS IA Ultimate. 
+                Localização Atual: {json.dumps(st.session_state.user_location)}.
                 Memória Permanente: {json.dumps(st.session_state.permanent_memory)}.
                 Responda sempre em português brasileiro."""
                 
@@ -204,5 +240,3 @@ if user_input:
             
             except Exception as e:
                 st.error(f"Erro na chamada da API: {str(e)}")
-                if "401" in str(e) or "invalid_api_key" in str(e):
-                    st.info(f"Dica: Verifique se a sua chave do {provider.upper()} está correta.")
