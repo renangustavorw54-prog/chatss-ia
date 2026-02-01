@@ -10,6 +10,8 @@ from utils.file_handler import process_uploaded_file, export_conversation_to_jso
 from streamlit_mic_recorder import mic_recorder
 from gtts import gTTS
 import io
+import speech_recognition as sr
+from pydub import AudioSegment
 
 # Configuração da Página
 st.set_page_config(
@@ -61,7 +63,6 @@ def text_to_speech(text):
 
 def get_weather(city):
     try:
-        # Usando uma API pública simples para clima (wttr.in)
         response = requests.get(f"https://wttr.in/{city}?format=%C+%t")
         if response.status_code == 200:
             return response.text
@@ -69,18 +70,21 @@ def get_weather(city):
     except:
         return "Erro ao buscar clima."
 
-def transcribe_audio(audio_bytes, api_key):
+def transcribe_audio_free(audio_bytes):
     try:
-        client = OpenAI(api_key=api_key)
-        audio_file = io.BytesIO(audio_bytes)
-        audio_file.name = "audio.wav"
-        transcript = client.audio.transcriptions.create(
-            model="whisper-1", 
-            file=audio_file
-        )
-        return transcript.text
+        # Converter bytes para formato que o SpeechRecognition entende
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes))
+        wav_io = io.BytesIO()
+        audio_segment.export(wav_io, format="wav")
+        wav_io.seek(0)
+        
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(wav_io) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data, language="pt-BR")
+            return text
     except Exception as e:
-        return f"[Erro na transcrição: {e}]"
+        return f"[Erro na transcrição gratuita: {e}]"
 
 # --- BARRA LATERAL ---
 with st.sidebar:
@@ -106,32 +110,28 @@ with st.sidebar:
         st.rerun()
 
 # --- ÁREA PRINCIPAL ---
-st.markdown("<h2 style='text-align: center;'>Voz & Clima em Tempo Real</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Voz & Clima Grátis</h2>", unsafe_allow_html=True)
 
 # Entrada de Áudio
-st.write("🎤 Fale com a IA:")
+st.write("🎤 Fale com a IA (Grátis):")
 audio_record = mic_recorder(start_prompt="🔴 Gravar", stop_prompt="🟢 Enviar", just_once=True, key='recorder')
 
 # Processar Áudio se houver
 user_input = st.chat_input("Ou digite aqui...")
 if audio_record and audio_record.get('id') != st.session_state.last_audio_id:
     st.session_state.last_audio_id = audio_record.get('id')
-    if not st.session_state.openai_key:
-        st.error("⚠️ Para ouvir sua voz, insira a chave da OpenAI na barra lateral (necessário para o Whisper).")
-    else:
-        with st.spinner("Ouvindo..."):
-            user_input = transcribe_audio(audio_record['bytes'], st.session_state.openai_key)
+    with st.spinner("Traduzindo sua voz..."):
+        user_input = transcribe_audio_free(audio_record['bytes'])
 
 # Lógica de Chat
 if user_input:
     if not api_key:
         st.error("⚠️ Insira sua chave na barra lateral!")
     else:
-        # Verificar se o usuário perguntou sobre o clima
         if "tempo" in user_input.lower() or "temperatura" in user_input.lower():
-            city = "Caraguatatuba" # Padrão do usuário
+            city = "Caraguatatuba"
             weather_info = get_weather(city)
-            user_input += f"\n\n[INFO TEMPO REAL: O clima atual em {city} é {weather_info}]"
+            user_input += f"\n\n[INFO CLIMA: Em {city} está {weather_info}]"
 
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(user_input[:30], model_id, "Assistente")
@@ -165,7 +165,7 @@ if user_input:
                 audio_fp = text_to_speech(full_response)
                 if audio_fp: st.audio(audio_fp, format='audio/mp3', autoplay=True)
 
-# Exibir Histórico na tela
-for message in st.session_state.messages[:-1]: # Evita duplicar a última
+# Exibir Histórico
+for message in st.session_state.messages[:-1]:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])

@@ -5,3 +5,5 @@ python-docx
 Pillow
 streamlit-mic-recorder
 gTTS
+SpeechRecognition
+pydub
