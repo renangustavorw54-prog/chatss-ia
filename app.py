@@ -32,6 +32,13 @@ except Exception as e:
     st.error(f"Erro ao iniciar banco de dados: {e}")
     st.stop()
 
+# Função para carregar imagem em Base64 (Garante exibição no Streamlit Cloud)
+def get_image_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return None
+
 # --- DESIGN ULTIMATE (ESTILO CHATGPT PLUS) ---
 st.markdown("""
 <style>
@@ -61,6 +68,17 @@ st.markdown("""
         border: 1px solid #424242 !important;
     }
     h1, h2, h3 { color: #58A6FF !important; }
+    
+    /* Estilo para o Logo na Sidebar */
+    .sidebar-logo {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    .sidebar-logo img {
+        width: 150px;
+        border-radius: 20px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,7 +94,6 @@ if "user_location" not in st.session_state: st.session_state.user_location = Non
 
 def get_user_location():
     try:
-        # Tenta obter localização via IP (serviço gratuito ip-api)
         response = requests.get("http://ip-api.com/json/", timeout=5)
         if response.status_code == 200:
             data = response.json()
@@ -87,21 +104,16 @@ def get_user_location():
                 "lat": data.get("lat"),
                 "lon": data.get("lon")
             }
-    except:
-        return None
+    except: return None
     return None
 
 def get_weather_auto(location_data):
-    if not location_data:
-        return "Localização não detectada."
+    if not location_data: return "Localização não detectada."
     try:
         city = location_data['cidade']
         response = requests.get(f"https://wttr.in/{city}?format=%C+%t", timeout=5)
-        if response.status_code == 200:
-            return f"{response.text} em {city}"
-        return f"Não consegui acessar o clima para {city}."
-    except:
-        return "Erro ao buscar clima."
+        return f"{response.text} em {city}" if response.status_code == 200 else "Indisponível"
+    except: return "Erro ao buscar clima."
 
 def text_to_speech_natural(text):
     try:
@@ -123,14 +135,21 @@ def transcribe_audio_free(audio_bytes):
             return recognizer.recognize_google(audio_data, language="pt-BR")
     except: return "[Áudio não compreendido]"
 
-# Tentar detectar localização na inicialização
+# Tentar detectar localização
 if st.session_state.user_location is None:
     st.session_state.user_location = get_user_location()
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    if os.path.exists("static/logo.png"):
-        st.image("static/logo.png", use_container_width=True)
+    # EXIBIÇÃO DO LOGO (FORÇADA COM BASE64)
+    logo_base64 = get_image_base64("static/logo.png")
+    if logo_base64:
+        st.markdown(
+            f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}"></div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown("<h1 style='text-align: center;'>🤖 ChatSS IA</h1>", unsafe_allow_html=True)
     
     st.subheader("⚙️ Configurações Plus")
     model_option = st.selectbox("Modelo", list(AVAILABLE_MODELS.keys()), index=0)
@@ -197,7 +216,6 @@ if user_input:
         if st.session_state.current_conversation_id is None:
             st.session_state.current_conversation_id = db.create_conversation(user_input[:30], model_id, "Assistente")
         
-        # Lógica de Clima com Localização Automática
         if "tempo" in user_input.lower() or "temperatura" in user_input.lower() or "clima" in user_input.lower():
             weather_info = get_weather_auto(st.session_state.user_location)
             user_input += f"\n\n[SISTEMA: Localização detectada: {st.session_state.user_location}. Clima atual: {weather_info}]"
@@ -211,15 +229,9 @@ if user_input:
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            
             try:
                 client = OpenAI(api_key=current_api_key, base_url=current_base_url)
-                
-                sys_msg = f"""Você é o ChatSS IA Ultimate. 
-                Localização Atual: {json.dumps(st.session_state.user_location)}.
-                Memória Permanente: {json.dumps(st.session_state.permanent_memory)}.
-                Responda sempre em português brasileiro."""
-                
+                sys_msg = f"Você é o ChatSS IA Ultimate. Localização: {json.dumps(st.session_state.user_location)}. Responda em português."
                 response = client.chat.completions.create(
                     model=model_id,
                     messages=[{"role": "system", "content": sys_msg}] + [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-15:]],
@@ -229,14 +241,11 @@ if user_input:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
                         message_placeholder.markdown(full_response + "▌")
-                
                 message_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
                 db.add_message(st.session_state.current_conversation_id, "assistant", full_response)
-                
                 if st.session_state.voice_enabled:
                     audio_fp = text_to_speech_natural(full_response)
                     if audio_fp: st.audio(audio_fp, format='audio/mp3', autoplay=True)
-            
             except Exception as e:
-                st.error(f"Erro na chamada da API: {str(e)}")
+                st.error(f"Erro: {str(e)}")
