@@ -3,5 +3,3 @@ openai
 PyPDF2
 python-docx
 Pillow
-sqlite3
-pathlib
